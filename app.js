@@ -4,13 +4,13 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 const STATE = {
   grade: "all",
   sound: true,
-  pane: "lesson",
-  idx: 0,
+  lessonId: "7_main_idea",
+  readTimer: null,
   currentComic: "https://qazcomics.kz/kz/comics/5/2",
-  readTimer: null
+  wordIndex: 0
 };
 
-const COMIC_LIST = [
+const COMICS = [
   { t: "QazComics", url: "https://qazcomics.kz/kz" },
   { t: "Ер Тарғын 1", url: "https://qazcomics.kz/kz/comics/5/1" },
   { t: "Ер Тарғын 2", url: "https://qazcomics.kz/kz/comics/5/2" },
@@ -26,14 +26,12 @@ const WORDS = [
   { kk: "оқиға", ru: "событие" },
   { kk: "басы", ru: "начало" },
   { kk: "негізгі бөлім", ru: "основная часть" },
-  { kk: "соңы", ru: "конец" },
-  { kk: "етістік", ru: "глагол" },
-  { kk: "зат есім", ru: "существительное" },
-  { kk: "сын есім", ru: "прилагательное" }
+  { kk: "соңы", ru: "конец" }
 ];
 
 const LESSONS = [
   {
+    id: "7_main_idea",
     grade: "7",
     topic: "Мәтін",
     title: "Тақырып және негізгі ой",
@@ -46,15 +44,14 @@ const LESSONS = [
     bank: ["Тақырып", "негізгі", "ойды", "автор", "айтады"],
     quiz: [
       { q: "Негізгі ой деген не?", opts: ["Автордың айтқысы келгені", "Кейіпкердің аты"], ans: "Автордың айтқысы келгені" },
-      { q: "Тақырып нені көрсетеді?", opts: ["Не туралы", "Қай жылы"], ans: "Не туралы" },
-      { q: "Негізгі ойды қалай айтуға болады?", opts: ["Бір сөйлеммен", "Суретпен ғана"], ans: "Бір сөйлеммен" }
+      { q: "Тақырып нені көрсетеді?", opts: ["Не туралы", "Қай жылы"], ans: "Не туралы" }
     ],
     pickPool: [
-      { q: "Қайсысы негізгі ой?", opts: ["Автордың айтқысы келгені", "Мәтіндегі ең ұзын сөйлем", "Кейіпкердің аты"], ans: "Автордың айтқысы келгені" },
-      { q: "Қайсысы тақырыпқа жақын?", opts: ["Не туралы", "Қайда отырды", "Неше болды"], ans: "Не туралы" }
+      { q: "Қайсысы негізгі ой?", opts: ["Автордың айтқысы келгені", "Кейіпкердің аты", "Ұзын сөйлем"], ans: "Автордың айтқысы келгені" }
     ]
   },
   {
+    id: "8_text_parts",
     grade: "8",
     topic: "Мәтін",
     title: "Мәтін бөліктері",
@@ -67,305 +64,290 @@ const LESSONS = [
     bank: ["Мәтіннің", "басы", "негізгі", "бөлім", "соңы"],
     quiz: [
       { q: "Оқиға қай бөлікте?", opts: ["Негізгі бөлім", "Басы"], ans: "Негізгі бөлім" },
-      { q: "Қорытынды қайда?", opts: ["Соңы", "Негізгі бөлім"], ans: "Соңы" },
-      { q: "Таныстыру қайда?", opts: ["Басы", "Соңы"], ans: "Басы" }
+      { q: "Қорытынды қайда?", opts: ["Соңы", "Басы"], ans: "Соңы" }
     ],
     pickPool: [
-      { q: "Қайсысы мәтіннің соңы?", opts: ["Қорытынды", "Таныстыру", "Оқиға"], ans: "Қорытынды" },
-      { q: "Қайсысы негізгі бөлімге тән?", opts: ["Оқиға", "Тақырып", "Аты"], ans: "Оқиға" }
+      { q: "Қайсысы соңы?", opts: ["Қорытынды", "Оқиға", "Таныстыру"], ans: "Қорытынды" }
     ]
   }
 ];
 
+function canSpeak(){
+  return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+}
+function stopReading(){
+  if (STATE.readTimer) { clearTimeout(STATE.readTimer); STATE.readTimer = null; }
+  if (canSpeak()) window.speechSynthesis.cancel();
+}
 function speak(text){
   if (!STATE.sound) return;
-  if (!("speechSynthesis" in window)) return;
+  if (!canSpeak()) { $("#speechHint").textContent = "Дыбыстау бұл браузерде жоқ."; return; }
+  $("#speechHint").textContent = "";
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 0.95;
   window.speechSynthesis.speak(u);
 }
 
-function stopReading(){
-  if (STATE.readTimer) {
-    clearTimeout(STATE.readTimer);
-    STATE.readTimer = null;
-  }
-  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+function showPage(id){
+  $$(".page").forEach(p => p.classList.remove("is-on"));
+  const el = document.getElementById(id);
+  if (el) el.classList.add("is-on");
 }
 
 function filteredLessons(){
   return STATE.grade === "all" ? LESSONS : LESSONS.filter(x => x.grade === STATE.grade);
 }
 
-function setPane(name){
-  STATE.pane = name;
-  $$("[data-pane]").forEach(b => b.classList.toggle("is-on", b.dataset.pane === name));
-  $$(".pane").forEach(p => p.classList.toggle("is-on", p.id === `pane-${name}`));
-}
-
-function setGrade(g){
-  STATE.grade = g;
-  $$("[data-grade]").forEach(b => b.classList.toggle("is-on", b.dataset.grade === g));
-  STATE.idx = 0;
-  loadLesson(filteredLessons()[0]);
-}
-
-function loadLesson(lesson){
-  if (!lesson) return;
-  stopReading();
-
-  $("#chipGrade").textContent = (STATE.grade === "all") ? "7–8" : STATE.grade;
-  $("#chipTopic").textContent = lesson.topic;
-  $("#lessonTitle").textContent = lesson.title;
-
-  // Comic main
-  $("#comicName").textContent = lesson.comic.name;
-  STATE.currentComic = lesson.comic.url;
-
-  // Text
-  const box = $("#lessonText");
-  box.innerHTML = "";
-  lesson.lines.forEach((ln, i) => {
-    const row = document.createElement("div");
-    row.className = "line";
-    row.innerHTML = `
-      <div class="badge" aria-hidden="true">${i+1}</div>
-      <div>
-        <p class="k">${ln.kk}</p>
-        <p class="r">${ln.ru}</p>
+function renderHome(){
+  const grid = $("#topicGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  filteredLessons().forEach(l => {
+    const a = document.createElement("a");
+    a.className = "tile";
+    a.href = `#lesson-${l.id}`;
+    a.innerHTML = `
+      <div class="tMeta">
+        <span class="chip">${l.grade}-сынып</span>
+        <span class="chip">${l.topic}</span>
       </div>
+      <div class="tTitle">${l.title}</div>
+      <div class="tSub">Комикс • Түсіну • Сөйлем құра</div>
     `;
-    row.addEventListener("click", () => speak(ln.kk));
+    grid.appendChild(a);
+  });
+}
+
+function renderComics(){
+  const box = $("#comicList");
+  box.innerHTML = "";
+  COMICS.forEach(c => {
+    const r = document.createElement("div");
+    r.className = "comRow";
+    r.innerHTML = `<div class="comT">${c.t}</div><button class="btn ghost" type="button">Ашу</button>`;
+    r.querySelector("button").addEventListener("click", () => window.open(c.url, "_blank", "noopener,noreferrer"));
+    box.appendChild(r);
+  });
+}
+
+function renderWords(){
+  const q = ($("#wordSearch").value || "").trim().toLowerCase();
+  const list = q ? WORDS.filter(w => w.kk.toLowerCase().includes(q) || w.ru.toLowerCase().includes(q)) : WORDS;
+
+  const box = $("#words");
+  box.innerHTML = "";
+  list.forEach((w, i) => {
+    const row = document.createElement("div");
+    row.className = "wi";
+    row.dataset.i = String(i);
+    row.innerHTML = `
+      <div>
+        <div class="wkk">${w.kk}</div>
+        <div class="wru">${w.ru}</div>
+      </div>
+      <button class="wiBtn" type="button">Оқу</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => speak(w.kk));
     box.appendChild(row);
   });
 
-  // Bank
-  const bank = $("#bank");
-  bank.innerHTML = "";
-  lesson.bank.forEach(w => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "wbtn";
-    b.textContent = w;
-    b.addEventListener("click", () => addWord(w));
-    bank.appendChild(b);
-  });
-  clearLine();
-
-  renderQuiz(lesson.quiz);
-  renderPickFromPool(lesson.pickPool);
-  renderComics();
-  renderWords();
+  return list;
 }
 
-function addWord(w){
-  const out = $("#out");
-  out.textContent = (out.textContent ? out.textContent + " " : "") + w;
-  speak(w);
+function highlightWord(i){
+  const rows = $$("#words .wi");
+  rows.forEach(r => (r.style.outline = "none"));
+  const t = rows[i];
+  if (!t) return;
+  t.style.outline = "3px solid rgba(59,130,246,.55)";
+  t.style.outlineOffset = "2px";
+  t.scrollIntoView({ block:"nearest", behavior:"smooth" });
 }
 
-function clearLine(){ $("#out").textContent = ""; }
+function nextWord(){
+  const list = renderWords();
+  if (!list.length) return;
+  if (STATE.wordIndex >= list.length) STATE.wordIndex = 0;
+  highlightWord(STATE.wordIndex);
+  speak(list[STATE.wordIndex].kk);
+  STATE.wordIndex += 1;
+}
 
 function renderQuiz(items){
   const quiz = $("#quiz");
   quiz.innerHTML = "";
-
   items.forEach(it => {
     const row = document.createElement("div");
     row.className = "qrow";
     row.innerHTML = `<div class="qt">${it.q}</div><div class="pills"></div>`;
     const pills = row.querySelector(".pills");
-
     it.opts.forEach(opt => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "pillbtn";
       b.textContent = opt;
       b.addEventListener("click", () => {
-        if (opt === it.ans) {
-          b.classList.add("ok");
-          speak("Жарайсың");
-        } else {
-          speak(it.ans);
-        }
+        if (opt === it.ans) { b.classList.add("ok"); speak("Жарайсың"); }
+        else speak(it.ans);
       });
       pills.appendChild(b);
     });
-
     quiz.appendChild(row);
   });
 }
 
-function pickOne(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
-function shuffle(a){ return [...a].sort(() => Math.random() - 0.5); }
-
-function renderPickFromPool(pool){
+function renderPick(pool){
   const pick = $("#pick");
   pick.innerHTML = "";
-
-  const p = pickOne(pool);
-  shuffle(p.opts).forEach(opt => {
+  const p = pool[Math.floor(Math.random() * pool.length)];
+  [...p.opts].sort(() => Math.random() - 0.5).forEach(opt => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "abtn";
     b.textContent = opt;
     b.addEventListener("click", () => {
-      if (opt === p.ans) {
-        b.classList.add("ok");
-        speak("Жарайсың");
-      } else {
-        speak(p.ans);
-      }
+      if (opt === p.ans) { b.classList.add("ok"); speak("Жарайсың"); }
+      else speak(p.ans);
     });
     pick.appendChild(b);
   });
 }
 
-function renderComics(){
-  const box = $("#comics");
-  box.innerHTML = "";
+function setLesson(id){
+  const l = LESSONS.find(x => x.id === id) || LESSONS[0];
+  STATE.lessonId = l.id;
+  STATE.currentComic = l.comic.url;
+  stopReading();
 
-  COMIC_LIST.forEach(c => {
+  $("#chipGrade").textContent = l.grade + "-сынып";
+  $("#chipTopic").textContent = l.topic;
+  $("#lessonTitle").textContent = l.title;
+  $("#comicName").textContent = l.comic.name;
+
+  const t = $("#lessonText");
+  t.innerHTML = "";
+  l.lines.forEach((ln, i) => {
     const row = document.createElement("div");
-    row.className = "com";
-    row.innerHTML = `<div class="comt">${c.t}</div><button class="btn ghost" type="button">Ашу</button>`;
-    row.querySelector("button").addEventListener("click", () => {
-      window.open(c.url, "_blank", "noopener,noreferrer");
-    });
-    box.appendChild(row);
-  });
-}
-
-function renderWords(){
-  const q = ($("#search").value || "").trim().toLowerCase();
-  const list = q
-    ? WORDS.filter(w => w.kk.toLowerCase().includes(q) || w.ru.toLowerCase().includes(q))
-    : WORDS;
-
-  const box = $("#words");
-  box.innerHTML = "";
-
-  list.forEach(w => {
-    const row = document.createElement("div");
-    row.className = "wi";
+    row.className = "line";
     row.innerHTML = `
+      <div class="badge">${i+1}</div>
       <div>
-        <div class="wkk">${w.kk}</div>
-        <div class="wru">${w.ru}</div>
+        <p class="k">${ln.kk}</p>
+        <p class="r">${ln.ru}</p>
       </div>
-      <button class="btn ghost" type="button">Оқу</button>
     `;
-    row.querySelector("button").addEventListener("click", () => speak(w.kk));
-    box.appendChild(row);
+    row.addEventListener("click", () => speak(ln.kk));
+    t.appendChild(row);
   });
+
+  const bank = $("#bank");
+  bank.innerHTML = "";
+  l.bank.forEach(w => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "wbtn";
+    b.textContent = w;
+    b.addEventListener("click", () => {
+      const out = $("#out");
+      out.textContent = (out.textContent ? out.textContent + " " : "") + w;
+      speak(w);
+    });
+    bank.appendChild(b);
+  });
+  $("#out").textContent = "";
+
+  renderComics();
+  renderQuiz(l.quiz);
+  renderPick(l.pickPool);
+
+  $("#wordSearch").value = "";
+  STATE.wordIndex = 0;
+  renderWords();
 }
 
-function hookUI(){
-  // Grade buttons
-  $$("[data-grade]").forEach(b => b.addEventListener("click", () => setGrade(b.dataset.grade)));
+function route(){
+  const h = (location.hash || "#home").replace("#", "");
+  if (h === "home") { showPage("home"); return; }
+  if (h === "assistant") { showPage("assistant"); return; }
 
-  // Pane buttons
-  $$("[data-pane]").forEach(b => b.addEventListener("click", () => setPane(b.dataset.pane)));
+  if (h.startsWith("lesson-")) {
+    const id = h.slice("lesson-".length);
+    showPage("lesson");
+    setLesson(id);
+    return;
+  }
+  // default
+  showPage("home");
+}
 
-  // Contrast
-  $("#t-contrast").addEventListener("click", () => {
-    const on = document.body.classList.toggle("contrast");
-    $("#t-contrast").setAttribute("aria-pressed", String(on));
-  });
+function hook(){
+  // grade filter
+  $$("[data-grade]").forEach(b => b.addEventListener("click", () => {
+    STATE.grade = b.dataset.grade;
+    $$("[data-grade]").forEach(x => x.classList.toggle("is-on", x.dataset.grade === STATE.grade));
+    renderHome();
+  }));
 
-  // Font
-  $("#t-font").addEventListener("click", () => {
-    const on = document.body.classList.toggle("big");
-    $("#t-font").setAttribute("aria-pressed", String(on));
-  });
-
-  // Sound
+  // controls
+  $("#t-contrast").addEventListener("click", () => document.body.classList.toggle("contrast"));
+  $("#t-font").addEventListener("click", () => document.body.classList.toggle("big"));
   $("#t-sound").addEventListener("click", () => {
     STATE.sound = !STATE.sound;
     $("#t-sound").classList.toggle("is-on", STATE.sound);
-    $("#t-sound").setAttribute("aria-pressed", String(STATE.sound));
     if (!STATE.sound) stopReading();
   });
 
-  // Prev/Next lesson
-  $("#prev").addEventListener("click", () => {
-    const list = filteredLessons();
-    if (!list.length) return;
-    STATE.idx = (STATE.idx - 1 + list.length) % list.length;
-    loadLesson(list[STATE.idx]);
-  });
-
-  $("#next").addEventListener("click", () => {
-    const list = filteredLessons();
-    if (!list.length) return;
-    STATE.idx = (STATE.idx + 1) % list.length;
-    loadLesson(list[STATE.idx]);
-  });
-
-  // Open main comic
-  $("#openComic").addEventListener("click", () => {
-    window.open(STATE.currentComic, "_blank", "noopener,noreferrer");
-  });
-
-  // Read all text
-  $("#readAll").addEventListener("click", () => {
+  // lesson buttons
+  $("#openComic").addEventListener("click", () => window.open(STATE.currentComic, "_blank", "noopener,noreferrer"));
+  $("#readAllText").addEventListener("click", () => {
     stopReading();
-    const list = filteredLessons();
-    const lesson = list[STATE.idx];
-    if (!lesson) return;
-
+    const l = LESSONS.find(x => x.id === STATE.lessonId);
+    if (!l) return;
     let i = 0;
     const seq = () => {
       if (!STATE.sound) return;
-      if (i >= lesson.lines.length) return;
-      speak(lesson.lines[i].kk);
+      if (i >= l.lines.length) return;
+      speak(l.lines[i].kk);
       i += 1;
       STATE.readTimer = setTimeout(seq, 1200);
     };
     seq();
   });
+  $("#stopRead").addEventListener("click", stopReading);
 
-  // Clear
-  $("#clearAll").addEventListener("click", () => {
-    stopReading();
-    $("#search").value = "";
-    renderWords();
-    clearLine();
-  });
-
-  // Sentence
+  $("#clearLine").addEventListener("click", () => ($("#out").textContent = ""));
   $("#sayLine").addEventListener("click", () => speak($("#out").textContent || " "));
-  $("#clearLine").addEventListener("click", clearLine);
 
-  // Pick regenerate
   $("#regenPick").addEventListener("click", () => {
-    const list = filteredLessons();
-    const lesson = list[STATE.idx];
-    if (!lesson) return;
-    renderPickFromPool(lesson.pickPool);
+    const l = LESSONS.find(x => x.id === STATE.lessonId);
+    if (l) renderPick(l.pickPool);
   });
 
-  // Words
-  $("#search").addEventListener("input", renderWords);
-  $("#b-readAllWords").addEventListener("click", () => {
-    stopReading();
-    let i = 0;
-    const seq = () => {
-      if (!STATE.sound) return;
-      if (i >= WORDS.length) return;
-      speak(WORDS[i].kk);
-      i += 1;
-      STATE.readTimer = setTimeout(seq, 1100);
-    };
-    seq();
+  $("#wordSearch").addEventListener("input", () => { STATE.wordIndex = 0; renderWords(); });
+  $("#wordNext").addEventListener("click", nextWord);
+
+  // prev/next
+  $("#prevLesson").addEventListener("click", () => {
+    const list = filteredLessons();
+    const idx = Math.max(0, list.findIndex(x => x.id === STATE.lessonId));
+    const prev = list[(idx - 1 + list.length) % list.length];
+    location.hash = `#lesson-${prev.id}`;
   });
+  $("#nextLesson").addEventListener("click", () => {
+    const list = filteredLessons();
+    const idx = Math.max(0, list.findIndex(x => x.id === STATE.lessonId));
+    const next = list[(idx + 1) % list.length];
+    location.hash = `#lesson-${next.id}`;
+  });
+
+  window.addEventListener("hashchange", route);
 }
 
 function start(){
-  hookUI();
-  setPane("lesson");
-  setGrade("all"); // load first
+  renderHome();
+  hook();
+  route(); // бастапқы бет
 }
 
 start();
