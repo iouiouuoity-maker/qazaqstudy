@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Қазақ тілі • 7–8</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="mark">ҚТ</div>
+    <div class="btxt">
+      <div class="b1">Қазақ тілі • 7–8</div>
+      <div class="b2">Сабақ</div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="seg" aria-label="Сынып">
+      <button class="segbtn is-on" data-grade="all" type="button">7–8</button>
+      <button class="segbtn" data-grade="7" type="button">7</button>
+      <button class="segbtn" data-grade="8" type="button">8</button>
+    </div>
+
+    <div class="seg" aria-label="Экран">
+      <button class="segbtn is-on" data-pane="lesson" type="button">Сабақ</button>
+      <button class="segbtn" data-pane="ai" type="button">ИИ</button>
+    </div>
+
+    <div class="seg" aria-label="Қолжетімділік">
+      <button class="segbtn" id="t-contrast" aria-pressed="false" title="Контраст" type="button">◐</button>
+      <button class="segbtn" id="t-font" aria-pressed="false" title="Үлкен мәтін" type="button">A+</button>
+      <button class="segbtn is-on" id="t-sound" aria-pressed="true" title="Дыбыс" type="button">🔊</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Сабақ -->
+  <section class="pane is-on" id="pane-lesson">
+    <section class="card hero">
+      <div class="heroTop">
+        <div class="meta">
+          <span class="chip" id="chipGrade">7–8</span>
+          <span class="chip" id="chipTopic">—</span>
+        </div>
+
+        <div class="nav">
+          <button class="navbtn" id="prev" title="Алдыңғы" type="button">◀</button>
+          <button class="navbtn" id="next" title="Келесі" type="button">▶</button>
+        </div>
+      </div>
+
+      <h1 class="h1" id="lessonTitle">—</h1>
+
+      <div class="two">
+        <div class="block">
+          <div class="blockTitle">Мәтін</div>
+          <div class="text" id="lessonText"></div>
+          <div class="row">
+            <button class="btn ghost" id="readAll" type="button">Оқу</button>
+            <button class="btn ghost" id="clearAll" type="button">Таза</button>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="blockTitle">Комикс</div>
+          <div class="comicCard">
+            <div class="comicText">
+              <div class="comicName" id="comicName">—</div>
+              <div class="comicHint">Жаңа бетте ашылады</div>
+            </div>
+            <button class="btn" id="openComic" type="button">Ашу</button>
+          </div>
+
+          <div class="comics" id="comics"></div>
+        </div>
+      </div>
+
+      <div class="two">
+        <div class="block">
+          <div class="blockTitle">Түсіну</div>
+          <div class="quiz" id="quiz"></div>
+        </div>
+
+        <div class="block">
+          <div class="blockTitle">Таңда</div>
+          <div class="pick" id="pick"></div>
+          <div class="row">
+            <button class="btn ghost" id="regenPick" type="button">Жаңарту</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="blockTitle">Сөйлем құра</div>
+        <div class="bank" id="bank"></div>
+        <div class="out" id="out" aria-live="polite"></div>
+        <div class="row">
+          <button class="btn" id="sayLine" type="button">Оқу</button>
+          <button class="btn ghost" id="clearLine" type="button">Тазалау</button>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="blockTitle">Сөздік</div>
+        <div class="search">
+          <input class="inp" id="search" placeholder="Іздеу…" />
+          <button class="btn ghost" id="b-readAllWords" type="button">Оқу</button>
+        </div>
+        <div class="words" id="words"></div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ИИ -->
+  <section class="pane" id="pane-ai">
+    <section class="card hero">
+      <div class="heroTop">
+        <div class="meta">
+          <span class="chip">ИИ көмекші</span>
+          <span class="chip">Elfsight</span>
+        </div>
+      </div>
+
+      <div class="aiBox">
+        <!-- Elfsight AI Chatbot | Untitled AI Chatbot -->
+        <script src="https://elfsightcdn.com/platform.js" async></script>
+        <div class="elfsight-app-5f869929-6809-4ce9-a5e5-0c39be8285c4" data-elfsight-app-lazy></div>
+      </div>
+    </section>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
