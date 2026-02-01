@@ -1,217 +1,384 @@
-:root{
-  --bg:#f6f8ff;
-  --card:#ffffff;
-  --text:#0f172a;
-  --muted:#475569;
-  --line:#e2e8f0;
-  --p:#2563eb;
-  --p2:#3b82f6;
-  --soft:#eef2ff;
-  --okbg: rgba(34,197,94,.12);
-  --okline: rgba(34,197,94,.35);
-  --shadow: 0 18px 40px rgba(15,23,42,.10);
-  --r: 20px;
-  --focus:#f59e0b;
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+
+const STATE = {
+  grade: "all",
+  sound: true,
+  lessonId: null,
+  readTimer: null,
+  currentComic: "https://qazcomics.kz/kz/comics/5/2",
+  wordIndex: 0,
+};
+
+const COMICS = [
+  { t: "QazComics", url: "https://qazcomics.kz/kz" },
+  { t: "Ер Тарғын 1", url: "https://qazcomics.kz/kz/comics/5/1" },
+  { t: "Ер Тарғын 2", url: "https://qazcomics.kz/kz/comics/5/2" },
+  { t: "Ер Тарғын 3", url: "https://qazcomics.kz/kz/comics/5/3" },
+  { t: "Ер Тарғын 4", url: "https://qazcomics.kz/kz/comics/5/4" },
+];
+
+const WORDS = [
+  { kk: "тақырып", ru: "тема" },
+  { kk: "негізгі ой", ru: "главная мысль" },
+  { kk: "мәтін", ru: "текст" },
+  { kk: "кейіпкер", ru: "персонаж" },
+  { kk: "оқиға", ru: "событие" },
+  { kk: "басы", ru: "начало" },
+  { kk: "негізгі бөлім", ru: "основная часть" },
+  { kk: "соңы", ru: "конец" },
+];
+
+const LESSONS = [
+  {
+    id: "7_main_idea",
+    grade: "7",
+    topic: "Мәтін",
+    title: "Тақырып және негізгі ой",
+    comic: { name: "Ер Тарғын • 2", url: "https://qazcomics.kz/kz/comics/5/2" },
+    lines: [
+      { kk: "Тақырып — мәтін не туралы екенін көрсетеді.", ru: "Тема показывает, о чём текст." },
+      { kk: "Негізгі ой — автор не айтқысы келеді.", ru: "Главная мысль — что хотел сказать автор." },
+      { kk: "Негізгі ойды бір сөйлеммен айтуға болады.", ru: "Главную мысль можно сказать одним предложением." },
+    ],
+    bank: ["Тақырып", "негізгі", "ойды", "автор", "айтады"],
+    quiz: [
+      { q: "Негізгі ой деген не?", opts: ["Автордың айтқысы келгені", "Кейіпкердің аты"], ans: "Автордың айтқысы келгені" },
+      { q: "Тақырып нені көрсетеді?", opts: ["Не туралы", "Қай жылы"], ans: "Не туралы" },
+    ],
+    pickPool: [
+      { q: "Қайсысы негізгі ой?", opts: ["Автордың айтқысы келгені", "Кейіпкердің аты", "Ұзын сөйлем"], ans: "Автордың айтқысы келгені" },
+    ],
+  },
+  {
+    id: "8_text_parts",
+    grade: "8",
+    topic: "Мәтін",
+    title: "Мәтін бөліктері",
+    comic: { name: "QazComics", url: "https://qazcomics.kz/kz" },
+    lines: [
+      { kk: "Мәтіннің басы — таныстыру.", ru: "Начало — знакомство." },
+      { kk: "Негізгі бөлім — оқиға.", ru: "Основная часть — событие." },
+      { kk: "Соңы — қорытынды.", ru: "Конец — итог." },
+    ],
+    bank: ["Мәтіннің", "басы", "негізгі", "бөлім", "соңы"],
+    quiz: [
+      { q: "Оқиға қай бөлікте?", opts: ["Негізгі бөлім", "Басы"], ans: "Негізгі бөлім" },
+      { q: "Қорытынды қайда?", opts: ["Соңы", "Басы"], ans: "Соңы" },
+    ],
+    pickPool: [
+      { q: "Қайсысы соңы?", opts: ["Қорытынды", "Оқиға", "Таныстыру"], ans: "Қорытынды" },
+    ],
+  },
+];
+
+// ===== Speech
+function canSpeak(){
+  return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+}
+function stopReading(){
+  if (STATE.readTimer) { clearTimeout(STATE.readTimer); STATE.readTimer = null; }
+  if (canSpeak()) window.speechSynthesis.cancel();
+}
+function speak(text){
+  if (!STATE.sound) return;
+  if (!canSpeak()) {
+    const hint = $("#speechHint");
+    if (hint) hint.textContent = "Озвучка недоступна в этом браузере.";
+    return;
+  }
+  const hint = $("#speechHint");
+  if (hint) hint.textContent = "";
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.95;
+  window.speechSynthesis.speak(u);
 }
 
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
-  color:var(--text);
-  background: radial-gradient(900px 520px at 12% 0%, #dbeafe 0%, var(--bg) 45%, #ffffff 100%);
+// ===== Navigation (pages)
+function setActiveNav(hash){
+  $("#navHome")?.classList.toggle("is-on", hash === "#home");
+  $("#navAssistant")?.classList.toggle("is-on", hash === "#assistant");
 }
-.wrap{max-width:1180px;margin:0 auto;padding:14px}
-.panel{padding:4px}
-
-/* header */
-.top{
-  position:sticky;top:0;z-index:10;
-  background: rgba(246,248,255,.92);
-  backdrop-filter: blur(10px);
-  border-bottom:1px solid var(--line);
-  padding:12px 14px;
-  display:flex;gap:12px;align-items:center;flex-wrap:wrap;
-}
-.brand{display:flex;gap:10px;align-items:center;text-decoration:none;color:inherit}
-.mark{
-  width:44px;height:44px;border-radius:16px;
-  display:flex;align-items:center;justify-content:center;
-  background: linear-gradient(135deg, var(--p2), #22c55e);
-  color:#fff;font-weight:900;
-  box-shadow: 0 10px 24px rgba(59,130,246,.22);
-}
-.b1{font-weight:900}
-.b2{color:var(--muted);font-weight:700;font-size:12px}
-
-.nav{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.sep{width:1px;height:34px;background:var(--line)}
-.navbtn{
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.80);
-  padding:10px 14px;border-radius:999px;
-  font-weight:900;text-decoration:none;color:inherit;
-  box-shadow: 0 10px 24px rgba(15,23,42,.05);
-}
-.navbtn.is-on{
-  border-color:transparent;
-  background: linear-gradient(180deg, var(--p2), var(--p));
-  color:#fff;
-}
-.iconbtn{
-  width:46px;height:46px;border-radius:16px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.80);
-  font-weight:900;cursor:pointer;
-}
-.iconbtn.is-on{
-  border-color:transparent;
-  background: linear-gradient(180deg, var(--p2), var(--p));
-  color:#fff;
+function show(id){
+  $("#page-home").hidden = true;
+  $("#page-lesson").hidden = true;
+  $("#page-assistant").hidden = true;
+  $(id).hidden = false;
 }
 
-/* home */
-.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.seg{
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.80);
-  border-radius:999px;padding:6px;
-  display:flex;gap:6px;flex-wrap:wrap;
-  box-shadow: 0 10px 24px rgba(15,23,42,.05);
+// ===== Data helpers
+function filteredLessons(){
+  return STATE.grade === "all" ? LESSONS : LESSONS.filter(x => x.grade === STATE.grade);
 }
-.segbtn{
-  border:0;background:transparent;
-  padding:10px 12px;border-radius:999px;
-  font-weight:900;cursor:pointer;
-}
-.segbtn.is-on{
-  background: linear-gradient(180deg, var(--p2), var(--p));
-  color:#fff;
+function findLesson(id){
+  return LESSONS.find(x => x.id === id) || LESSONS[0];
 }
 
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-@media (max-width: 980px){ .grid{grid-template-columns:1fr} }
-.tile{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--r);
-  box-shadow:var(--shadow);
-  padding:14px;
-  cursor:pointer;
-}
-.tMeta{display:flex;gap:8px;flex-wrap:wrap}
-.chip{
-  border:1px solid var(--line);
-  background:var(--soft);
-  padding:8px 10px;border-radius:999px;
-  font-weight:900;font-size:12px;
-}
-.tTitle{margin-top:10px;font-weight:900;font-size:18px}
-.tSub{margin-top:6px;color:var(--muted);font-weight:700;font-size:12px}
-
-/* lesson */
-.lessonTop{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.back{
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.80);
-  padding:10px 14px;border-radius:999px;
-  font-weight:900;text-decoration:none;color:inherit;
-}
-.lessonNav{display:flex;gap:10px}
-.navmini{
-  width:52px;height:52px;border-radius:18px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.80);
-  font-weight:900;cursor:pointer;
-}
-.h1{margin:12px 0 0;font-size:28px}
-
-.two{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width: 980px){ .two{grid-template-columns:1fr} }
-
-.card{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:var(--r);
-  box-shadow:var(--shadow);
-  padding:14px;
-}
-.card.big{padding:16px}
-.cardTitle{font-weight:900;margin-bottom:10px}
-.row{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.hint{margin-top:10px;color:var(--muted);font-weight:700;font-size:12px}
-
-.btn{
-  border:0;
-  background: linear-gradient(180deg, var(--p2), var(--p));
-  color:#fff;
-  padding:12px 14px;border-radius:16px;
-  font-weight:900;cursor:pointer;
-}
-.btn.ghost{
-  background:transparent;
-  border:1px solid var(--line);
-  color:var(--text);
+// ===== Render HOME
+function renderHome(){
+  const grid = $("#topicGrid");
+  grid.innerHTML = "";
+  filteredLessons().forEach(l => {
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.innerHTML = `
+      <div class="tMeta">
+        <span class="chip">${l.grade}-сынып</span>
+        <span class="chip">${l.topic}</span>
+      </div>
+      <div class="tTitle">${l.title}</div>
+      <div class="tSub">Комикс • Түсіну • Сөйлем құра</div>
+    `;
+    tile.addEventListener("click", () => {
+      location.hash = `#lesson-${l.id}`;
+    });
+    grid.appendChild(tile);
+  });
 }
 
-.inp{
-  flex:1;min-width:200px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.85);
-  padding:12px 12px;border-radius:16px;
-  font-weight:900;
+// ===== Lesson render
+function renderComics(){
+  const box = $("#comicList");
+  box.innerHTML = "";
+  COMICS.forEach(c => {
+    const r = document.createElement("div");
+    r.className = "comRow";
+    r.innerHTML = `<div class="comT">${c.t}</div><button class="btn ghost" type="button">Открыть</button>`;
+    r.querySelector("button").addEventListener("click", () => window.open(c.url, "_blank", "noopener,noreferrer"));
+    box.appendChild(r);
+  });
 }
 
-.text{display:grid;gap:10px}
-.line{
-  border:1px solid var(--line);
-  border-radius:18px;padding:12px;
-  background: rgba(59,130,246,.06);
-  display:flex;gap:12px;align-items:flex-start;
-  cursor:pointer;
+function renderQuiz(items){
+  const quiz = $("#quiz");
+  quiz.innerHTML = "";
+  items.forEach(it => {
+    const row = document.createElement("div");
+    row.className = "qrow";
+    row.innerHTML = `<div class="qt">${it.q}</div><div class="pills"></div>`;
+    const pills = row.querySelector(".pills");
+
+    it.opts.forEach(opt => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pillbtn";
+      b.textContent = opt;
+      b.addEventListener("click", () => {
+        if (opt === it.ans) { b.classList.add("ok"); speak("Жарайсың"); }
+        else speak(it.ans);
+      });
+      pills.appendChild(b);
+    });
+
+    quiz.appendChild(row);
+  });
 }
-.badge{
-  width:38px;height:38px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-  background:#fff;border:1px solid var(--line);
-  font-weight:900;
+
+function renderPick(pool){
+  const pick = $("#pick");
+  pick.innerHTML = "";
+  const p = pool[Math.floor(Math.random() * pool.length)];
+  [...p.opts].sort(() => Math.random() - 0.5).forEach(opt => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "abtn";
+    b.textContent = opt;
+    b.addEventListener("click", () => {
+      if (opt === p.ans) { b.classList.add("ok"); speak("Жарайсың"); }
+      else speak(p.ans);
+    });
+    pick.appendChild(b);
+  });
 }
-.k{margin:0;font-size:18px;font-weight:900}
-.r{margin:6px 0 0;color:var(--muted);font-weight:800}
 
-.quiz{display:grid;gap:10px}
-.qrow{border:1px solid var(--line);border-radius:18px;padding:12px;background: rgba(15,23,42,.02)}
-.qt{font-weight:900}
-.pills{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
-.pillbtn{border:1px solid var(--line);background:#fff;padding:10px 12px;border-radius:999px;font-weight:900;cursor:pointer}
-.pillbtn.ok{background: var(--okbg); border-color: var(--okline)}
+function renderWords(){
+  const q = ($("#wordSearch").value || "").trim().toLowerCase();
+  const list = q
+    ? WORDS.filter(w => w.kk.toLowerCase().includes(q) || w.ru.toLowerCase().includes(q))
+    : WORDS;
 
-.pick{display:grid;gap:10px}
-.abtn{border:1px solid var(--line);background:#fff;padding:14px 12px;border-radius:18px;font-weight:900;cursor:pointer}
-.abtn.ok{background: var(--okbg); border-color: var(--okline)}
+  const box = $("#words");
+  box.innerHTML = "";
+  list.forEach((w, i) => {
+    const row = document.createElement("div");
+    row.className = "wi";
+    row.dataset.i = String(i);
+    row.innerHTML = `
+      <div>
+        <div class="wkk">${w.kk}</div>
+        <div class="wru">${w.ru}</div>
+      </div>
+      <button class="wiBtn" type="button">Оқу</button>
+    `;
+    row.querySelector("button").addEventListener("click", () => speak(w.kk));
+    box.appendChild(row);
+  });
 
-.bank{display:flex;gap:8px;flex-wrap:wrap}
-.wbtn{border:1px solid var(--line);background:#fff;padding:10px 12px;border-radius:999px;font-weight:900;cursor:pointer}
-.out{margin-top:10px;min-height:44px;border:1px solid var(--line);border-radius:18px;padding:12px;background: rgba(15,23,42,.02);font-weight:900;font-size:20px}
-
-.comicCard{border:1px solid var(--line);border-radius:18px;padding:12px;background: rgba(34,197,94,.06);display:flex;justify-content:space-between;gap:10px;align-items:center}
-.comicName{font-weight:900}
-.comicList{margin-top:10px;display:grid;gap:10px}
-.comRow{border:1px solid var(--line);border-radius:18px;padding:12px;background: rgba(255,255,255,.85);display:flex;justify-content:space-between;gap:10px;align-items:center}
-.comT{font-weight:900}
-
-.words{margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-@media (max-width: 980px){ .words{grid-template-columns:1fr} }
-.wi{border:1px solid var(--line);border-radius:18px;padding:12px;background: rgba(59,130,246,.04);display:flex;justify-content:space-between;gap:10px;align-items:center}
-.wkk{font-weight:900;font-size:18px}
-.wru{color:var(--muted);font-weight:800}
-.wiBtn{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 12px;font-weight:900;cursor:pointer}
-
-.aiBox{margin-top:12px;border:1px solid var(--line);border-radius:var(--r);padding:14px;background: rgba(59,130,246,.04);min-height:560px}
-
-:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:14px}
-body.big{font-size:20px}
-body.contrast{
-  --bg:#ffffff; --card:#ffffff; --text:#000000; --muted:#111111;
-  --line:#000000; --p:#000000; --p2:#000000; --soft:#ffffff; --shadow:none;
+  return list;
 }
+
+function highlightWord(i){
+  const rows = $$("#words .wi");
+  rows.forEach(r => (r.style.outline = "none"));
+  const t = rows[i];
+  if (!t) return;
+  t.style.outline = "3px solid rgba(59,130,246,.55)";
+  t.style.outlineOffset = "2px";
+  t.scrollIntoView({ block:"nearest", behavior:"smooth" });
+}
+
+function nextWord(){
+  const list = renderWords();
+  if (!list.length) return;
+  if (STATE.wordIndex >= list.length) STATE.wordIndex = 0;
+  highlightWord(STATE.wordIndex);
+  speak(list[STATE.wordIndex].kk);
+  STATE.wordIndex += 1;
+}
+
+function setLesson(id){
+  const l = findLesson(id);
+  STATE.lessonId = l.id;
+  STATE.currentComic = l.comic.url;
+  STATE.wordIndex = 0;
+  stopReading();
+
+  $("#chipGrade").textContent = l.grade + "-сынып";
+  $("#chipTopic").textContent = l.topic;
+  $("#lessonTitle").textContent = l.title;
+  $("#comicName").textContent = l.comic.name;
+
+  // text
+  const t = $("#lessonText");
+  t.innerHTML = "";
+  l.lines.forEach((ln, i) => {
+    const row = document.createElement("div");
+    row.className = "line";
+    row.innerHTML = `
+      <div class="badge">${i+1}</div>
+      <div>
+        <p class="k">${ln.kk}</p>
+        <p class="r">${ln.ru}</p>
+      </div>
+    `;
+    row.addEventListener("click", () => speak(ln.kk));
+    t.appendChild(row);
+  });
+
+  // bank
+  const bank = $("#bank");
+  bank.innerHTML = "";
+  l.bank.forEach(w => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "wbtn";
+    b.textContent = w;
+    b.addEventListener("click", () => {
+      const out = $("#out");
+      out.textContent = (out.textContent ? out.textContent + " " : "") + w;
+      speak(w);
+    });
+    bank.appendChild(b);
+  });
+
+  $("#out").textContent = "";
+  $("#wordSearch").value = "";
+
+  renderComics();
+  renderQuiz(l.quiz);
+  renderPick(l.pickPool);
+  renderWords();
+}
+
+// ===== Router
+function route(){
+  const h = location.hash || "#home";
+  setActiveNav(h);
+
+  if (h === "#home") {
+    show("#page-home");
+    return;
+  }
+  if (h === "#assistant") {
+    show("#page-assistant");
+    return;
+  }
+  if (h.startsWith("#lesson-")) {
+    show("#page-lesson");
+    setLesson(h.replace("#lesson-", ""));
+    return;
+  }
+  // fallback
+  location.hash = "#home";
+}
+
+// ===== Hooks
+function hook(){
+  // grade filter
+  $$("[data-grade]").forEach(b => b.addEventListener("click", () => {
+    STATE.grade = b.dataset.grade;
+    $$("[data-grade]").forEach(x => x.classList.toggle("is-on", x.dataset.grade === STATE.grade));
+    renderHome();
+  }));
+
+  // toggles
+  $("#btnContrast").addEventListener("click", () => document.body.classList.toggle("contrast"));
+  $("#btnFont").addEventListener("click", () => document.body.classList.toggle("big"));
+  $("#btnSound").addEventListener("click", () => {
+    STATE.sound = !STATE.sound;
+    $("#btnSound").classList.toggle("is-on", STATE.sound);
+    if (!STATE.sound) stopReading();
+  });
+
+  // lesson buttons
+  $("#btnOpenComic").addEventListener("click", () => window.open(STATE.currentComic, "_blank", "noopener,noreferrer"));
+  $("#btnReadAll").addEventListener("click", () => {
+    stopReading();
+    const l = findLesson(STATE.lessonId);
+    let i = 0;
+    const seq = () => {
+      if (!STATE.sound) return;
+      if (i >= l.lines.length) return;
+      speak(l.lines[i].kk);
+      i += 1;
+      STATE.readTimer = setTimeout(seq, 1200);
+    };
+    seq();
+  });
+  $("#btnStop").addEventListener("click", stopReading);
+
+  $("#btnClearLine").addEventListener("click", () => $("#out").textContent = "");
+  $("#btnSayLine").addEventListener("click", () => speak($("#out").textContent || " "));
+
+  $("#btnPickNew").addEventListener("click", () => {
+    const l = findLesson(STATE.lessonId);
+    renderPick(l.pickPool);
+  });
+
+  $("#wordSearch").addEventListener("input", () => { STATE.wordIndex = 0; renderWords(); });
+  $("#btnWordNext").addEventListener("click", nextWord);
+
+  $("#btnPrev").addEventListener("click", () => {
+    const list = filteredLessons();
+    const idx = Math.max(0, list.findIndex(x => x.id === STATE.lessonId));
+    const prev = list[(idx - 1 + list.length) % list.length];
+    location.hash = `#lesson-${prev.id}`;
+  });
+  $("#btnNext").addEventListener("click", () => {
+    const list = filteredLessons();
+    const idx = Math.max(0, list.findIndex(x => x.id === STATE.lessonId));
+    const next = list[(idx + 1) % list.length];
+    location.hash = `#lesson-${next.id}`;
+  });
+
+  window.addEventListener("hashchange", route);
+}
+
+function start(){
+  renderHome();
+  hook();
+  route();
+}
+
+start();
