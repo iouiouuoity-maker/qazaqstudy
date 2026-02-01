@@ -9,30 +9,28 @@
 <body>
 
 <header class="top">
-  <div class="brand" role="button" tabindex="0" id="goHome" title="Басты бет">
+  <a class="brand" href="#home" title="Басты бет">
     <div class="mark">ҚТ</div>
-    <div class="btxt">
+    <div>
       <div class="b1">Қазақ тілі • 7–8</div>
       <div class="b2">Тақырыптар • Тапсырмалар</div>
     </div>
-  </div>
+  </a>
 
   <nav class="nav">
-    <button class="navbtn is-on" data-route="home" type="button">Тақырыптар</button>
-    <button class="navbtn" data-route="assistant" type="button">Көмекші</button>
-
-    <div class="sep"></div>
-
-    <button class="iconbtn" id="t-contrast" type="button" aria-pressed="false" title="Контраст">◐</button>
-    <button class="iconbtn" id="t-font" type="button" aria-pressed="false" title="Үлкен мәтін">A+</button>
-    <button class="iconbtn is-on" id="t-sound" type="button" aria-pressed="true" title="Дыбыс">🔊</button>
+    <a class="navbtn" href="#home">Тақырыптар</a>
+    <a class="navbtn" href="#assistant">Көмекші</a>
+    <span class="sep"></span>
+    <button class="iconbtn" id="t-contrast" type="button" title="Контраст">◐</button>
+    <button class="iconbtn" id="t-font" type="button" title="Үлкен мәтін">A+</button>
+    <button class="iconbtn is-on" id="t-sound" type="button" title="Дыбыс">🔊</button>
   </nav>
 </header>
 
 <main class="wrap">
 
-  <!-- HOME (тақырыптар) -->
-  <section class="page is-on" id="page-home" aria-label="Тақырыптар">
+  <!-- HOME: бұл бөлім JS жоқ болса да көрінеді -->
+  <section class="page" id="home">
     <div class="panel">
       <div class="filters">
         <div class="seg" aria-label="Сынып">
@@ -42,15 +40,34 @@
         </div>
       </div>
 
-      <div class="grid" id="topicGrid"></div>
+      <div class="grid" id="topicGrid">
+        <!-- Fallback контент (JS істемесе де бар) -->
+        <a class="tile" href="#lesson-7_main_idea">
+          <div class="tMeta">
+            <span class="chip">7-сынып</span>
+            <span class="chip">Мәтін</span>
+          </div>
+          <div class="tTitle">Тақырып және негізгі ой</div>
+          <div class="tSub">Комикс • Түсіну • Сөйлем құра</div>
+        </a>
+
+        <a class="tile" href="#lesson-8_text_parts">
+          <div class="tMeta">
+            <span class="chip">8-сынып</span>
+            <span class="chip">Мәтін</span>
+          </div>
+          <div class="tTitle">Мәтін бөліктері</div>
+          <div class="tSub">Комикс • Түсіну • Сөйлем құра</div>
+        </a>
+      </div>
     </div>
   </section>
 
-  <!-- LESSON (суббет) -->
-  <section class="page" id="page-lesson" aria-label="Тақырып беті">
+  <!-- LESSON: суббет -->
+  <section class="page" id="lesson">
     <div class="panel">
       <div class="lessonTop">
-        <button class="back" id="backHome" type="button">← Тақырыптар</button>
+        <a class="back" href="#home">← Тақырыптар</a>
 
         <div class="meta">
           <span class="chip" id="chipGrade">—</span>
@@ -63,24 +80,33 @@
         </div>
       </div>
 
-      <h1 class="h1" id="lessonTitle">—</h1>
+      <h1 class="h1" id="lessonTitle">Тақырып</h1>
 
       <div class="two">
         <div class="card">
           <div class="cardTitle">Мәтін</div>
-          <div class="text" id="lessonText"></div>
+          <div class="text" id="lessonText">
+            <!-- fallback мәтін (JS істемесе де бар) -->
+            <div class="line">
+              <div class="badge">1</div>
+              <div>
+                <p class="k">Тақырып — мәтін не туралы екенін көрсетеді.</p>
+                <p class="r">Тема показывает, о чём текст.</p>
+              </div>
+            </div>
+          </div>
           <div class="row">
             <button class="btn ghost" id="readAllText" type="button">Мәтінді оқу</button>
             <button class="btn ghost" id="stopRead" type="button">Тоқтату</button>
           </div>
-          <div class="hint" id="speechHint" aria-live="polite"></div>
+          <div class="hint" id="speechHint"></div>
         </div>
 
         <div class="card">
           <div class="cardTitle">Комикс</div>
           <div class="comicCard">
             <div>
-              <div class="comicName" id="comicName">—</div>
+              <div class="comicName" id="comicName">Комикс</div>
               <div class="hint">Жаңа бетте ашылады</div>
             </div>
             <button class="btn" id="openComic" type="button">Ашу</button>
@@ -109,7 +135,7 @@
         <div class="card">
           <div class="cardTitle">Сөйлем құра</div>
           <div class="bank" id="bank"></div>
-          <div class="out" id="out" aria-live="polite"></div>
+          <div class="out" id="out"></div>
           <div class="row">
             <button class="btn" id="sayLine" type="button">Сөйлемді оқу</button>
             <button class="btn ghost" id="clearLine" type="button">Тазалау</button>
@@ -128,8 +154,8 @@
     </div>
   </section>
 
-  <!-- ASSISTANT (суббет) -->
-  <section class="page" id="page-assistant" aria-label="Көмекші">
+  <!-- ASSISTANT -->
+  <section class="page" id="assistant">
     <div class="panel">
       <div class="card big">
         <div class="cardTitle">Көмекші</div>
@@ -143,6 +169,12 @@
       </div>
     </div>
   </section>
+
+  <noscript>
+    <div class="nos">
+      Браузерде JavaScript өшірулі. Тақырыптар бәрібір көрінеді, бірақ тапсырмалар толық ашылуы үшін JS қосулы болсын.
+    </div>
+  </noscript>
 
 </main>
 
